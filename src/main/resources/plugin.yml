@@ -1,0 +1,6 @@
+name: FreshDonatePlugin
+version: '1.0'
+main: ru.zaralx.freshDonatePlugin.FreshDonatePlugin
+api-version: '1.21'
+authors: [ zaralX ]
+website: https://zaralx.ru
