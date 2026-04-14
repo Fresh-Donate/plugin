@@ -1,0 +1,11 @@
+# FreshDonate Plugin Configuration
+
+api:
+  # URL вашего FreshDonate Backend API
+  url: "http://localhost:3001"
+
+  # API ключ для аутентификации (берётся из панели администратора)
+  apiKey: ""
+
+  # Интервал опроса API в секундах
+  pollInterval: 10

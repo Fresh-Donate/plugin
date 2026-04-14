@@ -1,6 +1,17 @@
-name: FreshDonatePlugin
-version: '1.0'
+name: FreshDonate
+version: '${version}'
 main: ru.zaralx.freshDonatePlugin.FreshDonatePlugin
-api-version: '1.21'
-authors: [ zaralX ]
+description: Donation delivery plugin for FreshDonate platform
+authors: [zaralX]
 website: https://zaralx.ru
+
+commands:
+  freshdonate:
+    description: FreshDonate admin commands
+    permission: freshdonate.admin
+    aliases: [fd]
+
+permissions:
+  freshdonate.admin:
+    description: Access to FreshDonate admin commands
+    default: op
