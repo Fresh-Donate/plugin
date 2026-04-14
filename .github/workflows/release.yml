@@ -3,7 +3,6 @@ name: Build & Release
 on:
   push:
     branches: [ "main" ]
-  # Полезно добавить workflow_dispatch, чтобы можно было запускать сборку кнопкой вручную из GitHub
   workflow_dispatch:
 
 permissions:
