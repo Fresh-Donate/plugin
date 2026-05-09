@@ -21,7 +21,7 @@ class FreshDonatePlugin : JavaPlugin() {
         // Init API client
         val apiUrl = config.getString("api.url") ?: "http://localhost:3001"
         val apiKey = config.getString("api.apiKey") ?: ""
-        apiClient = ApiClient(apiUrl, apiKey, logger)
+        apiClient = ApiClient(apiUrl, apiKey, description.version, logger)
 
         // Init delivery manager
         deliveryManager = DeliveryManager(this, apiClient)

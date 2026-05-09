@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "ru.zaralx"
-version = "1.0-Beta"
+version = "1.0.0"
 
 repositories {
     mavenCentral()

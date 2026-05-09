@@ -10,9 +10,11 @@ import java.util.logging.Logger
 class ApiClient(
     private var baseUrl: String,
     private var apiKey: String,
+    private val pluginVersion: String,
     private val logger: Logger
 ) {
     private val gson = Gson()
+    private val clientHeader = "plugin/$pluginVersion"
 
     fun updateConfig(baseUrl: String, apiKey: String) {
         this.baseUrl = baseUrl.trimEnd('/')
@@ -64,6 +66,7 @@ class ApiClient(
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "GET"
         conn.setRequestProperty("X-Api-Key", apiKey)
+        conn.setRequestProperty("X-FD-Client", clientHeader)
         conn.setRequestProperty("Accept", "application/json")
         conn.connectTimeout = 10000
         conn.readTimeout = 10000
@@ -84,6 +87,7 @@ class ApiClient(
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "POST"
         conn.setRequestProperty("X-Api-Key", apiKey)
+        conn.setRequestProperty("X-FD-Client", clientHeader)
         conn.setRequestProperty("Content-Type", "application/json")
         conn.setRequestProperty("Accept", "application/json")
         conn.connectTimeout = 10000
