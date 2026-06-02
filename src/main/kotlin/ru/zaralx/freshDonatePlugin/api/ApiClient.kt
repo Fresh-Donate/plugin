@@ -10,15 +10,17 @@ import java.util.logging.Logger
 class ApiClient(
     private var baseUrl: String,
     private var apiKey: String,
+    private var serverId: String,
     private val pluginVersion: String,
     private val logger: Logger
 ) {
     private val gson = Gson()
     private val clientHeader = "plugin/$pluginVersion"
 
-    fun updateConfig(baseUrl: String, apiKey: String) {
+    fun updateConfig(baseUrl: String, apiKey: String, serverId: String) {
         this.baseUrl = baseUrl.trimEnd('/')
         this.apiKey = apiKey
+        this.serverId = serverId
     }
 
     /**
@@ -61,11 +63,29 @@ class ApiClient(
         }
     }
 
+    /**
+     * Ping the backend and parse the response. In multi-server mode the
+     * backend echoes back the server id we authenticated as - useful for
+     * /fd status to confirm which server this plugin is bound to.
+     */
+    fun pingDetailed(): PingResult {
+        return try {
+            val response = get("/plugin/ping")
+            val parsed = gson.fromJson(response, PingResponse::class.java)
+            PingResult(ok = parsed?.status == "ok", serverId = parsed?.serverId)
+        } catch (e: Exception) {
+            PingResult(ok = false, serverId = null, error = e.message)
+        }
+    }
+
     private fun get(path: String): String {
         val url = URL("$baseUrl$path")
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "GET"
         conn.setRequestProperty("X-Api-Key", apiKey)
+        if (serverId.isNotEmpty()) {
+            conn.setRequestProperty("X-Server-Id", serverId)
+        }
         conn.setRequestProperty("X-FD-Client", clientHeader)
         conn.setRequestProperty("Accept", "application/json")
         conn.connectTimeout = 10000
@@ -87,6 +107,9 @@ class ApiClient(
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "POST"
         conn.setRequestProperty("X-Api-Key", apiKey)
+        if (serverId.isNotEmpty()) {
+            conn.setRequestProperty("X-Server-Id", serverId)
+        }
         conn.setRequestProperty("X-FD-Client", clientHeader)
         conn.setRequestProperty("Content-Type", "application/json")
         conn.setRequestProperty("Accept", "application/json")

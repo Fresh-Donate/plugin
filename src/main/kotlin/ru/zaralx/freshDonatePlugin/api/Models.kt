@@ -18,3 +18,14 @@ data class CommandLog(
     val success: Boolean,
     val response: String
 )
+
+internal data class PingResponse(
+    val status: String? = null,
+    val serverId: String? = null
+)
+
+data class PingResult(
+    val ok: Boolean,
+    val serverId: String?,
+    val error: String? = null
+)
