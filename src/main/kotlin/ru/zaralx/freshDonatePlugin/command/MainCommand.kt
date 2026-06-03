@@ -49,10 +49,10 @@ class MainCommand(
 
     private fun sendHelp(sender: CommandSender) {
         sender.sendMessage("${ChatColor.GOLD}=== FreshDonate Plugin ===")
-        sender.sendMessage("${ChatColor.YELLOW}/fd status ${ChatColor.GRAY}— Статус плагина")
-        sender.sendMessage("${ChatColor.YELLOW}/fd reload ${ChatColor.GRAY}— Перезагрузить конфиг")
-        sender.sendMessage("${ChatColor.YELLOW}/fd poll ${ChatColor.GRAY}— Опросить API прямо сейчас")
-        sender.sendMessage("${ChatColor.YELLOW}/fd test ${ChatColor.GRAY}— Проверить подключение к API")
+        sender.sendMessage("${ChatColor.YELLOW}/fd status ${ChatColor.GRAY}- Статус плагина")
+        sender.sendMessage("${ChatColor.YELLOW}/fd reload ${ChatColor.GRAY}- Перезагрузить конфиг")
+        sender.sendMessage("${ChatColor.YELLOW}/fd poll ${ChatColor.GRAY}- Опросить API прямо сейчас")
+        sender.sendMessage("${ChatColor.YELLOW}/fd test ${ChatColor.GRAY}- Проверить подключение к API")
     }
 
     private fun cmdStatus(sender: CommandSender) {

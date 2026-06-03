@@ -15,8 +15,8 @@ repositories {
 }
 
 dependencies {
-    // Compile against Paper 1.16.5 — lowest Paper version with reliable Maven resolution
-    // Uses only Bukkit API (dispatchCommand, getPlayer, events) — works on Spigot/Paper 1.13.2+
+    // Compile against Paper 1.16.5 - lowest Paper version with reliable Maven resolution
+    // Uses only Bukkit API (dispatchCommand, getPlayer, events) - works on Spigot/Paper 1.13.2+
     compileOnly("com.destroystokyo.paper:paper-api:1.16.5-R0.1-SNAPSHOT")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("com.google.code.gson:gson:2.11.0")
