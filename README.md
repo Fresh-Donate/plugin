@@ -1,4 +1,4 @@
-# FreshDonate — Minecraft Plugin
+# FreshDonate - Minecraft Plugin
 
 > Paper/Spigot plugin that delivers purchases to players in‑game.
 
@@ -9,7 +9,7 @@ See also: [Backend](https://github.com/Fresh-Donate/backend) · [Shop](https://g
 
 ## About FreshDonate
 
-FreshDonate is a self‑hosted donation system for Minecraft servers. It lets you sell ranks, items, currency and any other in‑game goods through your own storefront, accept payments via multiple providers, and deliver purchases to players automatically the next time they are online — without any third‑party commission or lock‑in.
+FreshDonate is a self‑hosted donation system for Minecraft servers. It lets you sell ranks, items, currency and any other in‑game goods through your own storefront, accept payments via multiple providers, and deliver purchases to players automatically the next time they are online - without any third‑party commission or lock‑in.
 
 The platform is split into four repositories:
 
@@ -26,7 +26,7 @@ The plugin is the in‑game side of FreshDonate. When a player joins the server,
 
 This lets players get their donations without restarts, without the owner running commands manually, and without the backend needing to hold an open connection to the server.
 
-> If you don't want to install the plugin, the backend can fall back to **RCON** for delivery — see the backend README.
+> If you don't want to install the plugin, the backend can fall back to **RCON** for delivery - see the backend README.
 
 ## Tech stack
 
@@ -77,9 +77,9 @@ build.gradle.kts  Gradle build (Kotlin DSL, shadow plugin)
 
 ## Related repositories
 
-- [fresh-donate-backend](https://github.com/Fresh-Donate/backend) — REST API this plugin polls for deliveries
-- [fresh-donate-shop](https://github.com/Fresh-Donate/shop) — public storefront
-- [fresh-donate-panel](https://github.com/Fresh-Donate/panel) — admin panel
+- [fresh-donate-backend](https://github.com/Fresh-Donate/backend) - REST API this plugin polls for deliveries
+- [fresh-donate-shop](https://github.com/Fresh-Donate/shop) - public storefront
+- [fresh-donate-panel](https://github.com/Fresh-Donate/panel) - admin panel
 
 ## License
 

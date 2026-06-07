@@ -46,7 +46,7 @@ class DeliveryManager(
     }
 
     /**
-     * Called when a player joins — process their queued deliveries
+     * Called when a player joins - process their queued deliveries
      */
     fun onPlayerJoin(playerName: String) {
         val queue = offlineQueue.remove(playerName.lowercase()) ?: return
@@ -83,19 +83,19 @@ class DeliveryManager(
             val player = Bukkit.getPlayerExact(delivery.playerNickname)
 
             if (player != null && player.isOnline) {
-                // Player is online — deliver on main thread
+                // Player is online - deliver on main thread
                 Bukkit.getScheduler().runTask(plugin, Runnable {
                     executeDelivery(delivery)
                 })
             } else if (delivery.requireOnline) {
-                // Player offline, requires online — queue for later
+                // Player offline, requires online - queue for later
                 val queue = offlineQueue.computeIfAbsent(delivery.playerNickname.lowercase()) {
                     ConcurrentLinkedQueue()
                 }
                 queue.add(delivery)
                 plugin.logger.info("Queued delivery for offline player ${delivery.playerNickname}: ${delivery.productName}")
             } else {
-                // Player offline but doesn't require online — execute anyway
+                // Player offline but doesn't require online - execute anyway
                 Bukkit.getScheduler().runTask(plugin, Runnable {
                     executeDelivery(delivery)
                 })
