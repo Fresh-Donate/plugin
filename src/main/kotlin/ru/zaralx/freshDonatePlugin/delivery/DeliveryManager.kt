@@ -6,33 +6,38 @@ import ru.zaralx.freshDonatePlugin.api.ApiClient
 import ru.zaralx.freshDonatePlugin.api.CommandLog
 import ru.zaralx.freshDonatePlugin.api.DeliveryResult
 import ru.zaralx.freshDonatePlugin.api.PendingDelivery
+import ru.zaralx.freshDonatePlugin.api.ReportOutcome
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
 
 class DeliveryManager(
     private val plugin: JavaPlugin,
     private val apiClient: ApiClient
 ) {
-    // Deliveries waiting for player to come online
-    private val offlineQueue = ConcurrentHashMap<String, ConcurrentLinkedQueue<PendingDelivery>>()
+    private val inFlight = ConcurrentHashMap.newKeySet<String>()
 
-    // Track payments we've already seen to avoid double-processing
-    private val processedIds = ConcurrentHashMap.newKeySet<String>()
+    private val unreported = ConcurrentHashMap<String, DeliveryResult>()
+
+    private val legacyHandled = ConcurrentHashMap.newKeySet<String>()
+
+    private val polling = AtomicBoolean(false)
+
+    private val joinPollScheduled = AtomicBoolean(false)
 
     private var pollTaskId = -1
 
-    val pendingOfflineCount: Int
-        get() = offlineQueue.values.sumOf { it.size }
+    val inFlightCount: Int
+        get() = inFlight.size
 
-    val queuedPlayers: Set<String>
-        get() = offlineQueue.keys.toSet()
+    val unreportedCount: Int
+        get() = unreported.size
 
     fun start(pollIntervalSeconds: Long) {
         stop()
         val intervalTicks = pollIntervalSeconds * 20L
 
-        pollTaskId = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, Runnable {
-            pollAndDeliver()
+        pollTaskId = Bukkit.getScheduler().runTaskTimer(plugin, Runnable {
+            pollNow()
         }, 20L, intervalTicks).taskId
 
         plugin.logger.info("Delivery manager started (poll every ${pollIntervalSeconds}s)")
@@ -45,65 +50,52 @@ class DeliveryManager(
         }
     }
 
-    /**
-     * Called when a player joins - process their queued deliveries
-     */
-    fun onPlayerJoin(playerName: String) {
-        val queue = offlineQueue.remove(playerName.lowercase()) ?: return
-        if (queue.isEmpty()) return
-
-        plugin.logger.info("Player $playerName joined, delivering ${queue.size} queued item(s)")
-
-        // Small delay to let the player fully load in
+    fun onPlayerJoin() {
+        if (!joinPollScheduled.compareAndSet(false, true)) return
         Bukkit.getScheduler().runTaskLater(plugin, Runnable {
-            while (queue.isNotEmpty()) {
-                val delivery = queue.poll() ?: break
-                executeDelivery(delivery)
-            }
-        }, 40L) // 2 second delay
+            joinPollScheduled.set(false)
+            pollNow()
+        }, 40L)
     }
 
     /**
      * Force re-poll now (triggered by admin command)
      */
     fun pollNow() {
+        if (!polling.compareAndSet(false, true)) return
+        val online = Bukkit.getOnlinePlayers().map { it.name }
+
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
-            pollAndDeliver()
+            try {
+                retryReports()
+                schedule(apiClient.fetchPending(online))
+            } finally {
+                polling.set(false)
+            }
         })
     }
 
-    private fun pollAndDeliver() {
-        val deliveries = apiClient.fetchPending()
-        if (deliveries.isEmpty()) return
-
+    private fun schedule(deliveries: List<PendingDelivery>) {
         for (delivery in deliveries) {
-            // Skip already processed
-            if (!processedIds.add(delivery.paymentId)) continue
+            if (unreported.containsKey(delivery.paymentId)) continue
+            if (apiClient.legacyPolling && delivery.paymentId in legacyHandled) continue
+            if (!inFlight.add(delivery.paymentId)) continue
 
-            val player = Bukkit.getPlayerExact(delivery.playerNickname)
-
-            if (player != null && player.isOnline) {
-                // Player is online - deliver on main thread
-                Bukkit.getScheduler().runTask(plugin, Runnable {
-                    executeDelivery(delivery)
-                })
-            } else if (delivery.requireOnline) {
-                // Player offline, requires online - queue for later
-                val queue = offlineQueue.computeIfAbsent(delivery.playerNickname.lowercase()) {
-                    ConcurrentLinkedQueue()
-                }
-                queue.add(delivery)
-                plugin.logger.info("Queued delivery for offline player ${delivery.playerNickname}: ${delivery.productName}")
-            } else {
-                // Player offline but doesn't require online - execute anyway
-                Bukkit.getScheduler().runTask(plugin, Runnable {
-                    executeDelivery(delivery)
-                })
-            }
+            Bukkit.getScheduler().runTask(plugin, Runnable {
+                execute(delivery)
+            })
         }
     }
 
-    private fun executeDelivery(delivery: PendingDelivery) {
+    private fun execute(delivery: PendingDelivery) {
+        if (delivery.requireOnline && Bukkit.getPlayerExact(delivery.playerNickname) == null) {
+            inFlight.remove(delivery.paymentId)
+            return
+        }
+        if (apiClient.legacyPolling) {
+            legacyHandled.add(delivery.paymentId)
+        }
+
         val logs = mutableListOf<CommandLog>()
         var allSuccess = true
 
@@ -120,25 +112,32 @@ class DeliveryManager(
             }
         }
 
-        val result = DeliveryResult(success = allSuccess, logs = logs)
-
         if (allSuccess) {
             plugin.logger.info("Delivered ${delivery.productName} to ${delivery.playerNickname} (${delivery.commands.size} commands)")
         } else {
             plugin.logger.warning("Delivery failed for ${delivery.playerNickname}: ${delivery.productName}")
         }
 
-        // Report result async
+        val result = DeliveryResult(success = allSuccess, logs = logs)
         Bukkit.getScheduler().runTaskAsynchronously(plugin, Runnable {
-            val reported = apiClient.reportResult(delivery.paymentId, result)
-            if (!reported) {
-                plugin.logger.warning("Failed to report delivery result for payment ${delivery.paymentId}")
-            }
-            // If report failed, allow re-processing on next poll
-            if (!reported && !allSuccess) {
-                processedIds.remove(delivery.paymentId)
-            }
+            report(delivery.paymentId, result)
         })
+    }
+
+    private fun report(paymentId: String, result: DeliveryResult) {
+        if (apiClient.reportResult(paymentId, result) == ReportOutcome.FAILED) {
+            unreported[paymentId] = result
+        } else {
+            unreported.remove(paymentId)
+        }
+        inFlight.remove(paymentId)
+    }
+
+    private fun retryReports() {
+        for ((paymentId, result) in unreported) {
+            if (apiClient.reportResult(paymentId, result) == ReportOutcome.FAILED) return
+            unreported.remove(paymentId)
+        }
     }
 
     private fun resolveVariables(command: String, playerName: String): String {

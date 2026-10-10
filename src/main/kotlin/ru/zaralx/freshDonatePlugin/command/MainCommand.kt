@@ -73,10 +73,9 @@ class MainCommand(
             sender.sendMessage("${ChatColor.GRAY}Режим: ${ChatColor.WHITE}один сервер")
         }
         sender.sendMessage("${ChatColor.GRAY}Интервал опроса: ${ChatColor.WHITE}${plugin.config.getLong("api.pollInterval", 10)}с")
-        sender.sendMessage("${ChatColor.GRAY}В очереди (оффлайн): ${ChatColor.WHITE}${dm.pendingOfflineCount}")
-        val players = dm.queuedPlayers
-        if (players.isNotEmpty()) {
-            sender.sendMessage("${ChatColor.GRAY}Ожидают игроков: ${ChatColor.WHITE}${players.joinToString(", ")}")
+        sender.sendMessage("${ChatColor.GRAY}Выдаются сейчас: ${ChatColor.WHITE}${dm.inFlightCount}")
+        if (dm.unreportedCount > 0) {
+            sender.sendMessage("${ChatColor.GRAY}Ждут отправки отчёта: ${ChatColor.WHITE}${dm.unreportedCount}")
         }
     }
 
