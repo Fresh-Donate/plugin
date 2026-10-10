@@ -18,7 +18,8 @@ class ApiClient(
     private val clientHeader = "plugin/$pluginVersion"
 
     @Volatile
-    private var legacyPolling = false
+    var legacyPolling = false
+        private set
 
     fun updateConfig(baseUrl: String, apiKey: String, serverId: String) {
         this.baseUrl = baseUrl.trimEnd('/')
@@ -55,14 +56,22 @@ class ApiClient(
     /**
      * Report delivery result back to the backend
      */
-    fun reportResult(paymentId: String, result: DeliveryResult): Boolean {
+    fun reportResult(paymentId: String, result: DeliveryResult): ReportOutcome {
         return try {
             val body = gson.toJson(result)
             post("/plugin/deliveries/$paymentId/result", body)
-            true
+            ReportOutcome.SENT
+        } catch (e: ApiException) {
+            if (e.code in 400..499 && e.code != 408 && e.code != 429) {
+                logger.warning("Backend rejected delivery result for $paymentId: ${e.message}")
+                ReportOutcome.REJECTED
+            } else {
+                logger.warning("Failed to report delivery result for $paymentId: ${e.message}")
+                ReportOutcome.FAILED
+            }
         } catch (e: Exception) {
             logger.warning("Failed to report delivery result for $paymentId: ${e.message}")
-            false
+            ReportOutcome.FAILED
         }
     }
 

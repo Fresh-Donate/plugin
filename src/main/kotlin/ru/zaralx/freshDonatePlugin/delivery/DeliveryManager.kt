@@ -6,6 +6,7 @@ import ru.zaralx.freshDonatePlugin.api.ApiClient
 import ru.zaralx.freshDonatePlugin.api.CommandLog
 import ru.zaralx.freshDonatePlugin.api.DeliveryResult
 import ru.zaralx.freshDonatePlugin.api.PendingDelivery
+import ru.zaralx.freshDonatePlugin.api.ReportOutcome
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -17,7 +18,11 @@ class DeliveryManager(
 
     private val unreported = ConcurrentHashMap<String, DeliveryResult>()
 
+    private val legacyHandled = ConcurrentHashMap.newKeySet<String>()
+
     private val polling = AtomicBoolean(false)
+
+    private val joinPollScheduled = AtomicBoolean(false)
 
     private var pollTaskId = -1
 
@@ -46,7 +51,9 @@ class DeliveryManager(
     }
 
     fun onPlayerJoin() {
+        if (!joinPollScheduled.compareAndSet(false, true)) return
         Bukkit.getScheduler().runTaskLater(plugin, Runnable {
+            joinPollScheduled.set(false)
             pollNow()
         }, 40L)
     }
@@ -71,6 +78,7 @@ class DeliveryManager(
     private fun schedule(deliveries: List<PendingDelivery>) {
         for (delivery in deliveries) {
             if (unreported.containsKey(delivery.paymentId)) continue
+            if (apiClient.legacyPolling && delivery.paymentId in legacyHandled) continue
             if (!inFlight.add(delivery.paymentId)) continue
 
             Bukkit.getScheduler().runTask(plugin, Runnable {
@@ -83,6 +91,9 @@ class DeliveryManager(
         if (delivery.requireOnline && Bukkit.getPlayerExact(delivery.playerNickname) == null) {
             inFlight.remove(delivery.paymentId)
             return
+        }
+        if (apiClient.legacyPolling) {
+            legacyHandled.add(delivery.paymentId)
         }
 
         val logs = mutableListOf<CommandLog>()
@@ -114,20 +125,18 @@ class DeliveryManager(
     }
 
     private fun report(paymentId: String, result: DeliveryResult) {
-        if (apiClient.reportResult(paymentId, result)) {
-            unreported.remove(paymentId)
-        } else {
+        if (apiClient.reportResult(paymentId, result) == ReportOutcome.FAILED) {
             unreported[paymentId] = result
-            plugin.logger.warning("Failed to report delivery result for payment $paymentId, will retry")
+        } else {
+            unreported.remove(paymentId)
         }
         inFlight.remove(paymentId)
     }
 
     private fun retryReports() {
         for ((paymentId, result) in unreported) {
-            if (apiClient.reportResult(paymentId, result)) {
-                unreported.remove(paymentId)
-            }
+            if (apiClient.reportResult(paymentId, result) == ReportOutcome.FAILED) return
+            unreported.remove(paymentId)
         }
     }
 
