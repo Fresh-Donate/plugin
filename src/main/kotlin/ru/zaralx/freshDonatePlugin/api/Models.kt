@@ -8,6 +8,10 @@ data class PendingDelivery(
     val requireOnline: Boolean
 )
 
+internal data class PendingRequest(
+    val online: List<String>
+)
+
 data class DeliveryResult(
     val success: Boolean,
     val logs: List<CommandLog>

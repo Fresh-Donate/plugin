@@ -17,23 +17,38 @@ class ApiClient(
     private val gson = Gson()
     private val clientHeader = "plugin/$pluginVersion"
 
+    @Volatile
+    private var legacyPolling = false
+
     fun updateConfig(baseUrl: String, apiKey: String, serverId: String) {
         this.baseUrl = baseUrl.trimEnd('/')
         this.apiKey = apiKey
         this.serverId = serverId
+        this.legacyPolling = false
     }
 
     /**
      * Fetch pending deliveries from the backend
      */
-    fun fetchPending(): List<PendingDelivery> {
+    fun fetchPending(online: List<String>): List<PendingDelivery> {
         return try {
-            val response = get("/plugin/deliveries/pending")
+            val response = if (legacyPolling) get("/plugin/deliveries/pending") else pollWithOnline(online)
             val type = object : TypeToken<List<PendingDelivery>>() {}.type
             gson.fromJson(response, type) ?: emptyList()
         } catch (e: Exception) {
             logger.warning("Failed to fetch pending deliveries: ${e.message}")
             emptyList()
+        }
+    }
+
+    private fun pollWithOnline(online: List<String>): String {
+        return try {
+            post("/plugin/deliveries/pending", gson.toJson(PendingRequest(online)))
+        } catch (e: ApiException) {
+            if (e.code != 404 && e.code != 405) throw e
+            legacyPolling = true
+            logger.info("Backend does not accept the online player list, using the old polling endpoint")
+            get("/plugin/deliveries/pending")
         }
     }
 
@@ -96,7 +111,7 @@ class ApiClient(
             val errorBody = try {
                 conn.errorStream?.bufferedReader()?.readText() ?: ""
             } catch (_: Exception) { "" }
-            throw ApiException("GET $path returned $code: $errorBody")
+            throw ApiException(code, "GET $path returned $code: $errorBody")
         }
 
         return conn.inputStream.bufferedReader().readText()
@@ -124,11 +139,11 @@ class ApiClient(
             val errorBody = try {
                 conn.errorStream?.bufferedReader()?.readText() ?: ""
             } catch (_: Exception) { "" }
-            throw ApiException("POST $path returned $code: $errorBody")
+            throw ApiException(code, "POST $path returned $code: $errorBody")
         }
 
         return conn.inputStream.bufferedReader().readText()
     }
 }
 
-class ApiException(message: String) : Exception(message)
+class ApiException(val code: Int, message: String) : Exception(message)

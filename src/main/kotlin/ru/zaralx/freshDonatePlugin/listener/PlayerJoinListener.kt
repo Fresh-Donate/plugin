@@ -12,6 +12,6 @@ class PlayerJoinListener(
 
     @EventHandler(priority = EventPriority.MONITOR)
     fun onPlayerJoin(event: PlayerJoinEvent) {
-        deliveryManager.onPlayerJoin(event.player.name)
+        deliveryManager.onPlayerJoin()
     }
 }
